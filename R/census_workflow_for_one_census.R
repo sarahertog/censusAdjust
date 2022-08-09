@@ -1,9 +1,58 @@
-# implements the census workflow steps for a single census
-# as described in flowchart XX
+#' census_workflow_for_one_census
+#'
+#' implements the census adjustment protocol workflow for a single census
+#' as described in protocol flowchart xx
+#'
+#' @param dd_census_extract data frame output by ddharmony::DDharmonize_validate_PopCounts() function for one census
+#' @return A list of objects describing the steps implemented in the census adjustment protocol
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' LocID <- 312
+#' load("C:/Users/SARAH/OneDrive - United Nations/WPP2021/Population/data/harmonized/312_census_harmonized.rda")
+#' census_all <- pop %>% dplyr::filter(non_standard == FALSE & AgeStart >= 0)
+#'
+#' dcids <- unique(census_all$DataCatalogID)
+#' census_pop <- census_all %>% dplyr::filter(DataCatalogID == dcids[2])
+#'
+#' census_reference_date <- as.numeric(census_pop$TimeMid[1])
+#' census_reference_year <- ifelse(census_reference_date >= 1950, floor(census_reference_date), 1950)
+#'
+#' dd_census_extract <- census_pop
+#'
+#'
+#' test <- census_workflow_for_one_census (dd_census_extract, # a census extract returned by DDharmonize_validate_PopCounts()
+#'                                         LocID,
+#'                                         locid_DemoTools = LocID,
+#'                                         census_reference_date, # decimal year
+#'                                         adjust_pes = TRUE, # should census be adjusted based on pes models?
+#'                                         adjust_smooth = TRUE, # should census be smoothed according to age heaping assessment?
+#'                                         adjust_basepop = TRUE, # should child counts be adjusted per basepop analysis?
+#'                                         lxMale = NULL, # single or abridged male lx at census reference year. if NULL then will use DemoToolsData
+#'                                         lxFemale = NULL, # single or abridged female lx at census reference year.
+#'                                         Age_lx = NULL, # single or abridged
+#'                                         nLxMatMale = NULL, # matrix of abridged nLx for males. if NULL then will use DemoToolsData
+#'                                         nLxMatFemale = NULL, # abridged
+#'                                         nLxMatDatesIn = NULL,
+#'                                         AsfrMat = NULL, # 5-year age groups from 15 to 45 only
+#'                                         AsfrDatesIn = NULL,
+#'                                         SRB = NULL,
+#'                                         SRBDatesIn = NULL,
+#'                                         radix = NULL,
+#'                                         EduYrs = NULL,
+#'                                         PES_factor_Total = NULL,
+#'                                         PES_factor_single_Male = NULL,
+#'                                         PES_factor_single_Female = NULL,
+#'                                         PES_factor_abridged_Male = NULL,
+#'                                         PES_factor_abridged_Female = NULL)
+#'}
 
-        
+
+
 census_workflow_for_one_census <- function(dd_census_extract, # a census extract returned by DDharmonize_validate_PopCounts()
                                            LocID,
+                                           locid_PES = LocID,
                                            locid_DemoTools = LocID,
                                            census_reference_date, # decimal year
                                            adjust_pes = TRUE, # should census be adjusted based on pes models?
@@ -26,11 +75,11 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
                                            PES_factor_single_Female = NULL,
                                            PES_factor_abridged_Male = NULL,
                                            PES_factor_abridged_Female = NULL) {
-  
-  
-    # initialize output 
+
+
+    # initialize output
       census_workflow_out <- NULL
-      
+
     ###############################################################################
     ###############################################################################
     # A. Decide whether to work with single-year, abridged, or five-year age groups
@@ -41,57 +90,57 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
         has_five_year_oag50 <- dd_census_extract %>% census_has_five_year_oag50
         # Abridged grouped age series is available and OAG >= 50?
         has_abridged_oag50 <- dd_census_extract %>% census_has_abridged_oag50
-        
+
         if (has_single_oag50 == TRUE) {
-          
+
           # Parse the census population counts by single year of age
-          pop <- dd_census_extract %>% dplyr::filter(complete == TRUE) %>% 
+          pop <- dd_census_extract %>% dplyr::filter(complete == TRUE) %>%
             arrange(SexID, AgeStart)
-          
+
           use_series <- "single"
-          
-        } else { 
-          
+
+        } else {
+
           if (has_abridged_oag50 == TRUE) {
-          
+
           # Parse the census population counts by abridged age groups
-          pop <- dd_census_extract %>% dplyr::filter(abridged == TRUE) %>% 
+          pop <- dd_census_extract %>% dplyr::filter(abridged == TRUE) %>%
             arrange(SexID, AgeStart)
-          
+
           use_series <- "abridged"
-          
+
           } else {
-          
+
             if (has_five_year_oag50 == TRUE) {
-            
+
             # Parse the census population counts by five-year age groups
-            pop <- dd_census_extract %>% dplyr::filter(five_year == TRUE) %>% 
+            pop <- dd_census_extract %>% dplyr::filter(five_year == TRUE) %>%
               arrange(SexID, AgeStart)
-            
+
             use_series <- "five_year"
-            
+
             } else {
-          
+
               pop <- NULL
               use_series <- NULL
               print(paste0("WARNING: There are no suitable data series available for the ", census_refpd, " census of ", dd_census_extract$LocName[1]))
 			  log_print(paste0("WARNING: There are no suitable data series available for the ", census_refpd, " census of ", dd_census_extract$LocName[1]), msg = TRUE, console=FALSE)
-              
+
             }
           }
         }
-    
-        
+
+
     ###############################################################################
     ###############################################################################
-        
+
     if (!is.null(pop)) {
-          
+
           # set aside the input population series
-          pop_in <- pop %>% 
-            dplyr::filter(AgeLabel != "Total" & SexID %in% c(1,2)) %>% 
+          pop_in <- pop %>%
+            dplyr::filter(AgeLabel != "Total" & SexID %in% c(1,2)) %>%
             dplyr::select(SexID, AgeStart, DataValue, id)
-          
+
     ###############################################################################
     ###############################################################################
     # B. Ensure that the start age for the open age group is <= 100 and is a multiple of 5
@@ -100,31 +149,52 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
           pop_working <- census_workflow_oag100_mult5(Age = pop_in$AgeStart[pop_in$SexID ==2],
                                                       popF = pop_in$DataValue[pop_in$SexID ==2],
                                                       popM = pop_in$DataValue[pop_in$SexID ==1])
-          
-          
+
+
     ###############################################################################
     ###############################################################################
     # C. Adjust for under/overcount
-    
+
         if (adjust_pes == TRUE) {
-          
+
           if (use_series == "single") {
+
+            if (is.null(PES_factor_single_Male)) {
+              PES_factor_single_Male    <- dplyr::filter(DiffNCE1, LocID == locid_PES, Year == census_reference_year)$NetEnum_M_Diff
+            }
             NCE_m <- PES_factor_single_Male
+            if (is.null(PES_factor_single_Female)) {
+              PES_factor_single_Female  <- dplyr::filter(DiffNCE1, LocID == locid_PES, Year == census_reference_year)$NetEnum_F_Diff
+            }
             NCE_f <- PES_factor_single_Female
+
             NCE_age <- 1:length(NCE_m)-1
+
           } else {
+
+            if (is.null(PES_factor_abridged_Male)) {
+              PES_factor_abridged_Male     <- dplyr::filter(DiffNCEAbr, LocID == locid_PES, Year == census_reference_year)$NetEnum_M_Diff
+            }
             NCE_m <- PES_factor_abridged_Male
+            if (is.null(PES_factor_abridged_Female)) {
+              PES_factor_abridged_Female     <- dplyr::filter(DiffNCEAbr, LocID == locid_PES, Year == census_reference_year)$NetEnum_F_Diff
+            }
             NCE_f <- PES_factor_abridged_Female
+
             NCE_age <- c(0,1,seq(5, 5*(length(NCE_m)-2),5))
           }
-          
+
+          if (is.null(PES_factor_Total)) {
+            PES_factor_Total <- dplyr::filter(NCE, LocID == locid_PES, Year == census_reference_year)$NetEnum
+          }
+
           # Perform the adjustment per net census enumeration model results based on analysis of post-enumeration surveys
-          pop_working <- census_workflow_adjust_pes(Age = pop_working$Age, 
-                                                     popF = pop_working$popF, 
+          pop_working <- census_workflow_adjust_pes(Age = pop_working$Age,
+                                                     popF = pop_working$popF,
                                                      popM = pop_working$popM,
                                                      census_reference_date = census_reference_date,
-                                                     NCE_total = PES_factor_Total, 
-                                                     NCE_m = NCE_m, 
+                                                     NCE_total = PES_factor_Total,
+                                                     NCE_m = NCE_m,
                                                      NCE_f = NCE_f,
                                                      NCE_age = NCE_age)
 
@@ -133,32 +203,32 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
           pop_adjusted <- data.frame(SexID = c(rep(1,nAge),rep(2,nAge)),
                                      AgeStart = rep(pop_working$Age,2),
                                      DataValue = c(pop_working$popM, pop_working$popF))
-          
+
         } else {
             pop_adjusted <- NULL
         }
-          
-          # set the unsmoothed series aside for basepop later
+
+          # set the unsmoothed series aside for later missing child adjustment with basepop
           nAge <- nrow(pop_working)
           pop_unsmoothed <- data.frame(SexID = c(rep(1,nAge),rep(2,nAge)),
                                        AgeStart = rep(pop_working$Age,2),
                                        DataValue = c(pop_working$popM, pop_working$popF))
-        
+
     ###############################################################################
     ###############################################################################
     # D. Extend such that the open age group is  for ages 105+
-          
+
           min_age_redist <- min(max(pop_working$Age), 65)
           if (round(floor(LocID)) == 440 & round(floor(census_reference_date),0) == 1989) {
             min_age_redist <- 85
           }
          # temporary fix for Lithuania 1989 census which has a big cohort effect that confuses the extension process
 
-          OPAG_out <- census_workflow_extend_to_105(popM = pop_working$popM,
+          OPAG_out <- census_workflow_extend_OAG(popM = pop_working$popM,
                                                     popF = pop_working$popF,
                                                     Age = pop_working$Age,
-                                                    LocID = locid_DemoTools, 
-                                                    Year = min(floor(census_reference_date), 2019), 
+                                                    LocID = locid_DemoTools,
+                                                    Year = min(floor(census_reference_date), 2019),
                                                     lxM = lxMale, # vector of lx representing stable standard
                                                     lxF = lxFemale,
                                                     Age_lx = Age_lx,
@@ -166,7 +236,7 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
                                                     cv_tolerance = 0.75, # coefficient of variation tolerance for join point
                                                     min_age_redist = min_age_redist,
                                                     OAnew = 105)
-          
+
           pop_working <- data.frame(Age = OPAG_out$Age_ext,
                                 popF = OPAG_out$popF_ext,
                                 popM = OPAG_out$popM_ext)
@@ -176,14 +246,23 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
           pop_extended <- data.frame(SexID = c(rep(1,nAge),rep(2,nAge)),
                                      AgeStart = rep(pop_working$Age,2),
                                      DataValue = c(pop_working$popM, pop_working$popF))
-          
-          
+
+
     ###############################################################################
     ###############################################################################
     # E. Smooth over age
-          
+
+        # first run some diagnostics
+
         if (adjust_smooth == TRUE)  {
-          
+
+          if (is.null(EduYrs)) {
+            # Average years of Education at census reference date
+            EduYrs_m <- dplyr::filter(Covariates,LocID==locid_DemoTools, Year==census_reference_year)$EducYrsM
+            EduYrs_f <- dplyr::filter(Covariates,LocID==locid_DemoTools, Year==census_reference_year)$EducYrsF
+            EduYrs   <- min(EduYrs_m, EduYrs_f)
+          }
+
           pop_smooth_output <- census_workflow_adjust_smooth(popM = pop_working$popM,
                                                              popF = pop_working$popF,
                                                              Age = pop_working$Age,
@@ -192,22 +271,22 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
                                                              age_ratio_age_child = c(0,10),
                                                              age_ratio_age_adult = c(15,min(70, OPAG_out$age_redist_start)),
                                                              EduYrs = EduYrs)
- 
-          
+
+
           pop_working <- data.frame(Age = 0:105,
                                     popF = pop_smooth_output$popF,
                                     popM = pop_smooth_output$popM)
-          
+
           # set aside the smoothed series
           nAge <- nrow(pop_working)
           pop_smoothed <- data.frame(SexID = c(rep(1,nAge),rep(2,nAge)),
                                      AgeStart = rep(pop_working$Age,2),
                                      DataValue = c(pop_working$popM, pop_working$popF))
-          
 
-      
+
+
         } else { # if no smoothing
-          
+
           # if data are not single, then graduate the grouped data
           if (!(use_series == "single")) {
           # graduate the extended series
@@ -218,7 +297,7 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
                                     popF = popF_grad,
                                     popM = popM_grad)
           }
-          
+
           pop_smooth_output <- list(Age = NA,
                                     popF_smoothed = NA,
                                     popM_smoothed = NA,
@@ -233,13 +312,13 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
           pop_smoothed        <- NULL
 
         }
-          
+
     ###############################################################################
     ###############################################################################
-    # F: Adjust for missing children (basepop) 
-          
+    # F: Adjust for missing children (basepop)
+
         if (adjust_basepop == TRUE)  {
-            
+
           pop_basepop <- census_workflow_adjust_basepop(popM1 = pop_working$popM,
                                                    popF1 = pop_working$popF,
                                                    popM_unsmoothed = pop_unsmoothed$DataValue[pop_unsmoothed$SexID ==1],
@@ -248,16 +327,16 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
                                                    smooth_method = pop_smooth_output$best_smooth_child,
                                                    LocID = locid_DemoTools,
                                                    census_reference_date = census_reference_date,
-                                                   nLxMatFemale = nLxMatFemale, 
-                                                   nLxMatMale = nLxMatMale, 
-                                                   nLxMatDatesIn = nLxMatDatesIn, 
-                                                   AsfrMat = AsfrMat, 
-                                                   AsfrDatesIn = AsfrDatesIn, 
-                                                   SRB = SRB, 
-                                                   SRBDatesIn = SRBDatesIn, 
+                                                   nLxMatFemale = nLxMatFemale,
+                                                   nLxMatMale = nLxMatMale,
+                                                   nLxMatDatesIn = nLxMatDatesIn,
+                                                   AsfrMat = AsfrMat,
+                                                   AsfrDatesIn = AsfrDatesIn,
+                                                   SRB = SRB,
+                                                   SRBDatesIn = SRBDatesIn,
                                                    radix = radix)
 
-          
+
           pop_working <- data.frame(Age = pop_basepop$AgeStart[pop_basepop$BPLabel == "BP4" & pop_basepop$SexID == 2],
                                     popF = pop_basepop$DataValue[pop_basepop$BPLabel == "BP4" & pop_basepop$SexID == 2],
                                     popM = pop_basepop$DataValue[pop_basepop$BPLabel == "BP4" & pop_basepop$SexID == 1])
@@ -266,17 +345,17 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
         } else {
           pop_basepop <- NULL
         }
-          
+
     ###############################################################################
     ###############################################################################
     # END: Compile the output
-        
+
         # Final results
           nAge <- nrow(pop_working)
           census_pop_out <- data.frame(SexID = c(rep(1,nAge),rep(2,nAge)),
                                        AgeStart = rep(pop_working$Age,2),
                                        DataValue = c(pop_working$popM, pop_working$popF))
-          
+
           # compile all of the outputs
           census_workflow_out <- list(LocID = LocID,
                                                   LocName = dd_census_extract$LocName[1],
@@ -302,20 +381,20 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
                                                   pop_extended = pop_extended,
                                                   pop_smoothed = pop_smoothed,
                                                   pop_basepop = pop_basepop,
-                                                  census_pop_out = census_pop_out) 
-          
+                                                  census_pop_out = census_pop_out)
 
-          
+
+
     } # close for !is.null(pop)
-        
-        return(census_workflow_out)  
-        
+
+        return(census_workflow_out)
+
 }
-        
-        
-          
-          
-          
-        
-     
-    
+
+
+
+
+
+
+
+

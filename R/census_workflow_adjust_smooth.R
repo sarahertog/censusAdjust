@@ -1,6 +1,13 @@
-# this function assesses age heaping and accordingly applies smoothing
-# as described in flowchart XX
-
+#' census_workflow_adjust_smooth
+#'
+#' this function assesses age heaping and accordingly applies smoothing
+#' as described in protocol flowchart xx
+#'
+#' @param popM numeric. vector of male population counts
+#' @param popF numeric. vector of female population counts
+#' @param Age numeric. vector of age (years) associated with population counts vectors
+#' @return A list of objects describing the steps implemented in smoothing population counts over age
+#' @export
 
 census_workflow_adjust_smooth <- function(popM,
                                           popF,
@@ -9,7 +16,7 @@ census_workflow_adjust_smooth <- function(popM,
                                           bachi_age_adult = 23:77, # age range for bachi index for adults
                                           age_ratio_age_child = c(0,10), # age range for age ratio score for children
                                           age_ratio_age_adult = c(15,70), # age range for age ratio score for adults
-                                          EduYrs) { # average years of education (used as a criterion for level of smoothing) 
+                                          EduYrs) { # average years of education (used as a criterion for level of smoothing)
 
 
 # intialize bachi
@@ -18,45 +25,45 @@ bachi_adult <- NA
 
 # if inputs are by single year of age
 if (is_single(Age)) {
-  
-  # assess single year age heaping for children and smooth accordingly 
+
+  # assess single year age heaping for children and smooth accordingly
   pop_smooth_child <- getSmoothedPop1 (Age = Age,
                                        popF = popF,
-                                       popM = popM, 
-                                       bachi_age = bachi_age_child, 
+                                       popM = popM,
+                                       bachi_age = bachi_age_child,
                                        age_ratio_age = age_ratio_age_child,
-                                       EduYrs = EduYrs, 
-                                       subgroup = "child") 
+                                       EduYrs = EduYrs,
+                                       subgroup = "child")
   bachi_child <- pop_smooth_child$bachi
-  
-  # assess single year age heaping for adults and smooth accordingly 
+
+  # assess single year age heaping for adults and smooth accordingly
   pop_smooth_adult <- getSmoothedPop1 (Age = Age,
                                        popF = popF,
-                                       popM = popM,  
+                                       popM = popM,
                                        bachi_age = bachi_age_adult,
                                        age_ratio_age = age_ratio_age_adult,
-                                       EduYrs = EduYrs, 
-                                       subgroup = "adult") 
+                                       EduYrs = EduYrs,
+                                       subgroup = "adult")
   bachi_adult <- pop_smooth_adult$bachi
-  
+
 } else {
-  
-  # assess grouped age heaping for children and smooth accordingly 
+
+  # assess grouped age heaping for children and smooth accordingly
   pop_smooth_child <- getSmoothedPop5(Age = Age,
                                       popF = popF,
-                                      popM = popM, 
+                                      popM = popM,
                                       age_ratio_age = age_ratio_age_child,
-                                      EduYrs = EduYrs, 
-                                      subgroup = "child")  
-  
-  # assess grouped age heaping for adults and smooth accordingly 
+                                      EduYrs = EduYrs,
+                                      subgroup = "child")
+
+  # assess grouped age heaping for adults and smooth accordingly
   pop_smooth_adult <- getSmoothedPop5(Age = Age,
                                       popF = popF,
-                                      popM = popM,  
+                                      popM = popM,
                                       age_ratio_age = age_ratio_age_adult,
-                                      EduYrs = EduYrs, 
-                                      subgroup = "adult") 
-  
+                                      EduYrs = EduYrs,
+                                      subgroup = "adult")
+
 }
 
 # blend the smoothed child and adult series, with transition at ages 15-19
