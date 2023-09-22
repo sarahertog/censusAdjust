@@ -29,6 +29,7 @@
 #'                                         adjust_pes = TRUE, # should census be adjusted based on pes models?
 #'                                         adjust_smooth = TRUE, # should census be smoothed according to age heaping assessment?
 #'                                         adjust_basepop = TRUE, # should child counts be adjusted per basepop analysis?
+#'                                         force_old_age_redist = NA, # age from which to force an OPAG redistribution of population to correct for age exaggeration
 #'                                         lxMale = NULL, # single or abridged male lx at census reference year. if NULL then will use DemoToolsData
 #'                                         lxFemale = NULL, # single or abridged female lx at census reference year.
 #'                                         Age_lx = NULL, # single or abridged
@@ -58,6 +59,7 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
                                            adjust_pes = TRUE, # should census be adjusted based on pes models?
                                            adjust_smooth = TRUE, # should census be smoothed according to age heaping assessment?
                                            adjust_basepop = TRUE, # should child counts be adjusted per basepop analysis?
+                                           force_old_age_redist = NA, # age from which to force an OPAG redistribution of population to correct for age exaggeration
                                            lxMale = NULL, # single or abridged male lx at census reference year. if NULL then will use DemoToolsData
                                            lxFemale = NULL, # single or abridged female lx at census reference year.
                                            Age_lx = NULL, # single or abridged
@@ -221,8 +223,19 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
           min_age_redist <- min(max(pop_working$Age), 65)
           if (round(floor(LocID)) == 440 & round(floor(census_reference_date),0) == 1989) {
             min_age_redist <- 85
+          }# temporary fix for Lithuania 1989 census which has a big cohort effect that confuses the extension process
+
+          # if we will force a redistribution of population at older ages to address age exaggeration
+          # then here we collapse the population counts at older ages into the open age group
+          # that begins with the age specified in the force_old_age_redist parameter
+          if (!is.na(force_old_age_redist)) {
+            pop_working <- pop_working %>%
+              mutate(popF = replace(popF, Age==force_old_age_redist, sum(popF[Age >= force_old_age_redist])),
+                     popM = replace(popM, Age==force_old_age_redist, sum(popM[Age >= force_old_age_redist]))) %>%
+              dplyr::filter(Age <= force_old_age_redist)
+
+            min_age_redist  <- force_old_age_redist
           }
-         # temporary fix for Lithuania 1989 census which has a big cohort effect that confuses the extension process
 
           OPAG_out <- census_workflow_extend_OAG(popM = pop_working$popM,
                                                     popF = pop_working$popF,
@@ -254,9 +267,7 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
 
         # first run some diagnostics
 
-        if (adjust_smooth == TRUE)  {
-
-          if (is.null(EduYrs)) {
+        if (is.null(EduYrs)) {
             # Average years of Education at census reference date
             EduYrs_m <- dplyr::filter(Covariates,LocID==locid_DemoTools, Year==census_reference_year)$EducYrsM
             EduYrs_f <- dplyr::filter(Covariates,LocID==locid_DemoTools, Year==census_reference_year)$EducYrsF
@@ -272,6 +283,7 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
                                                              age_ratio_age_adult = c(15,min(70, OPAG_out$age_redist_start)),
                                                              EduYrs = EduYrs)
 
+        if (adjust_smooth == TRUE)  {
 
           pop_working <- data.frame(Age = 0:105,
                                     popF = pop_smooth_output$popF,
@@ -298,17 +310,9 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
                                     popM = popM_grad)
           }
 
-          pop_smooth_output <- list(Age = NA,
-                                    popF_smoothed = NA,
-                                    popM_smoothed = NA,
-                                    bachi_child = NA,
-                                    bachi_adult = NA,
-                                    ageRatio_adult_orig = NA,
-                                    ageRatio_child_orig = NA,
-                                    ageRatio_adult_mav2 = NA,
-                                    ageRatio_child_mav2 = NA,
-                                    best_smooth_adult   = NA,
-                                    best_smooth_child   = NA)
+          pop_smooth_output$popF_smoothed <- NA
+          pop_smooth_output$popM_smoothed <- NA
+
           pop_smoothed        <- NULL
 
         }
