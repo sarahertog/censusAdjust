@@ -16,7 +16,10 @@ census_workflow_adjust_smooth <- function(popM,
                                           bachi_age_adult = 23:77, # age range for bachi index for adults
                                           age_ratio_age_child = c(0,10), # age range for age ratio score for children
                                           age_ratio_age_adult = c(15,70), # age range for age ratio score for adults
-                                          EduYrs) { # average years of education (used as a criterion for level of smoothing)
+                                          EduYrs,# average years of education (used as a criterion for level of smoothing)
+                                          no_smooth_ages = NULL, # ages (single-year) to exclude from any smoothing
+                                          bestMavN_override_adult = NA, # mavN to force for adults (replaces bestMavN)
+                                          bestMavN_override_child = NA) { #mavN to force for children (replaces bestMavN))
 
 
 # intialize bachi
@@ -33,6 +36,7 @@ if (is_single(Age)) {
                                        bachi_age = bachi_age_child,
                                        age_ratio_age = age_ratio_age_child,
                                        EduYrs = EduYrs,
+                                       bestMavN_override = bestMavN_override_child,
                                        subgroup = "child")
   bachi_child <- pop_smooth_child$bachi
 
@@ -43,6 +47,7 @@ if (is_single(Age)) {
                                        bachi_age = bachi_age_adult,
                                        age_ratio_age = age_ratio_age_adult,
                                        EduYrs = EduYrs,
+                                       bestMavN_override = bestMavN_override_adult,
                                        subgroup = "adult")
   bachi_adult <- pop_smooth_adult$bachi
 
@@ -71,6 +76,17 @@ wts <- c(rep(1,16),0.8, 0.6, 0.4, 0.2, rep(0, max(Age)-19))
 
 popM_smoothed <- (pop_smooth_child$popM_smooth * wts) + (pop_smooth_adult$popM_smooth * (1-wts))
 popF_smoothed <- (pop_smooth_child$popF_smooth * wts) + (pop_smooth_adult$popF_smooth * (1-wts))
+
+# if some ages to be excluded from smoothing, then replace counts with their original values here
+if (!is.null(no_smooth_ages)) {
+  Age1 <- 0:105
+  if (!(is_single(Age))) {
+    popM <- DemoTools::graduate_mono(popM, Age = Age, AgeInt = DemoTools::age2int(Age))
+    popF <- DemoTools::graduate_mono(popF, Age = Age, AgeInt = DemoTools::age2int(Age))
+  }
+popM_smoothed <- ifelse(Age1 %in% no_smooth_ages, popM, popM_smoothed)
+popF_smoothed <- ifelse(Age1 %in% no_smooth_ages, popF, popF_smoothed)
+}
 
 # re-adjust to ensure that after smoothing we are still matching the total
 popM_smoothed <- popM_smoothed * sum(popM)/sum(popM_smoothed)

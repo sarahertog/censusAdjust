@@ -58,6 +58,9 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
                                            census_reference_date, # decimal year
                                            adjust_pes = TRUE, # should census be adjusted based on pes models?
                                            adjust_smooth = TRUE, # should census be smoothed according to age heaping assessment?
+                                           no_smooth_ages = NA, # ages (single-year) to exclude from any smoothing
+                                           bestMavN_override_adult = NA, # mavN to force for adults (replaces bestMavN)
+                                           bestMavN_override_child = NA, #mavN to force for children (replaces bestMavN)
                                            adjust_basepop = TRUE, # should child counts be adjusted per basepop analysis?
                                            force_old_age_redist = NA, # age from which to force an OPAG redistribution of population to correct for age exaggeration
                                            lxMale = NULL, # single or abridged male lx at census reference year. if NULL then will use DemoToolsData
@@ -281,7 +284,10 @@ census_workflow_for_one_census <- function(dd_census_extract, # a census extract
                                                              bachi_age_adult = 23:min(77, OPAG_out$age_redist_start),
                                                              age_ratio_age_child = c(0,10),
                                                              age_ratio_age_adult = c(15,min(70, OPAG_out$age_redist_start)),
-                                                             EduYrs = EduYrs)
+                                                             EduYrs = EduYrs,
+                                                             no_smooth_ages = no_smooth_ages, # ages (single-year) to exclude from any smoothing
+                                                             bestMavN_override_adult = bestMavN_override_adult, # mavN to force for adults (replaces bestMavN)
+                                                             bestMavN_override_child = bestMavN_override_child) #mavN to force for children (replaces bestMavN)
 
         if (adjust_smooth == TRUE)  {
 
