@@ -1,10 +1,10 @@
 Package: censusAdjust
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Title: Adjust census population counts
+Version: 1.1.1
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+    person("Sara", "Hertog", , "hertog@un.org", role = "aut",
+           comment = c(ORCID = "0000-0002-6954-5100"))
+Description: Implement UN population protocol to adjust census population counts by age and sex, correcting for common problems like underenumeration, age-heaping and missing children.
 License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
     license
 Encoding: UTF-8
