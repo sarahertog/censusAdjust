@@ -2,7 +2,7 @@ Package: censusAdjust
 Title: Adjust census population counts
 Version: 1.1.1
 Authors@R: 
-    person("Sara", "Hertog", , "hertog@un.org", role = "aut",
+    person("Sara", "Hertog", email = "hertog@un.org", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-6954-5100"))
 Description: Implement UN population protocol to adjust census population counts by age and sex, correcting for common problems like underenumeration, age-heaping and missing children.
 License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
