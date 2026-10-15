@@ -12,7 +12,10 @@ census_workflow_adjust_smooth(
   bachi_age_adult = 23:77,
   age_ratio_age_child = c(0, 10),
   age_ratio_age_adult = c(15, 70),
-  EduYrs
+  EduYrs,
+  no_smooth_ages = NULL,
+  bestMavN_override_adult = NA,
+  bestMavN_override_child = NA
 )
 }
 \arguments{

@@ -12,7 +12,11 @@ census_workflow_for_one_census(
   census_reference_date,
   adjust_pes = TRUE,
   adjust_smooth = TRUE,
+  no_smooth_ages = NA,
+  bestMavN_override_adult = NA,
+  bestMavN_override_child = NA,
   adjust_basepop = TRUE,
+  force_old_age_redist = NA,
   lxMale = NULL,
   lxFemale = NULL,
   Age_lx = NULL,
@@ -64,6 +68,7 @@ test <- census_workflow_for_one_census (dd_census_extract, # a census extract re
                                         adjust_pes = TRUE, # should census be adjusted based on pes models?
                                         adjust_smooth = TRUE, # should census be smoothed according to age heaping assessment?
                                         adjust_basepop = TRUE, # should child counts be adjusted per basepop analysis?
+                                        force_old_age_redist = NA, # age from which to force an OPAG redistribution of population to correct for age exaggeration
                                         lxMale = NULL, # single or abridged male lx at census reference year. if NULL then will use DemoToolsData
                                         lxFemale = NULL, # single or abridged female lx at census reference year.
                                         Age_lx = NULL, # single or abridged
